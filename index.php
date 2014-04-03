@@ -568,7 +568,35 @@ $app->post('/apns/:app_id/:user_id', function ($app_id, $user_id) use($app)
 		echo '{"error":{"text":"' . $e->getMessage() . '"}}';
 	}
 });
+// Cron Run
+// *A simple cron run, to published all pending issues past their publication date.
+// it's reccomemended to attached a hash to the cron url, so that it's not easily discovered.
+// ie
+// $app->get('/cron/bb2i76cfg3ifwg376gfq387dyh23dhba6327i4rg', function() use($app) {
 
+$app->get('/cron/bb2i76cfg3ifwg376gfq387dyh23dhba6327i4rg', function() use($app) {
+    global $dbContainer;
+    $db = $dbContainer['db'];
+    $result = $db->query("SELECT PRODUCT_ID, DATE FROM ISSUES
+    						WHERE AVAILABILITY = 'pending'");
+    $pending_issues = $result->fetchAll();
+    $now = date("Y-m-d g:i-s", time());
+
+    foreach($pending_issues as $issue){
+        $issueDate = date("Y-m-d g:i-s", strtotime($issue['DATE']));
+
+        if($issueDate <= $now){
+            $sql = 'UPDATE ISSUES
+            SET AVAILABILITY = :availability
+            WHERE PRODUCT_ID = :product_id';
+            $update = $db->prepare($sql);
+            $published = 'published';
+            $update->bindParam('availability',$published);
+            $update->bindParam('product_id',$issue['PRODUCT_ID']);
+            $update->execute();
+        }
+    }
+});
 // ************************************************
 // Utility Functions
 // ************************************************
